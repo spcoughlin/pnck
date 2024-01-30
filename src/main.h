@@ -1,0 +1,1 @@
+void openFile(char *fileName);
