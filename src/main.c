@@ -19,10 +19,22 @@ int main(int argc, char *argv[]) {
                 // open and display file
 		openFile(file);
         }
-        printw("Hello World!");
-        refresh();
-        getch();
-        endwin();
+	mode = NORMAL;
+	switch (mode) {
+		case NORMAL:
+			printw("Normal mode");
+			break;
+		case INSERT:
+			printw("Insert mode");
+			break;
+		case COMMAND:
+			printw("Command mode");
+			break;
+	}
+        printw("\n Waiting for input to close");
+	refresh();
+	getch();
+	endwin();
 
         return 0;
 }
