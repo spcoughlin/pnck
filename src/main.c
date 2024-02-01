@@ -61,7 +61,7 @@ Buffer open_file_to_buffer(char *file) {
 
 void print_buffer_to_screen(Buffer buffer) {
 	for (int i = 0; i < buffer.num_rows; i++) {
-		printw("%s", buffer.rows[i].contents);
+		printw("Buffer Row %i: %s", i, buffer.rows[i].contents);
 	}
 }
 
