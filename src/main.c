@@ -1,16 +1,7 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <ncurses.h>
 #include "main.h"
-
-void openFile(char *file) {
-	FILE *fp;
-	int c;
-	fp = fopen(file, "r");
-	while ((c = fgetc(fp)) != EOF) {
-		printw("%c", c);
-	}
-	fclose(fp);
-}
 
 Buffer open_file_to_buffer(char *file) {
 	Buffer buffer;
@@ -26,30 +17,42 @@ Buffer open_file_to_buffer(char *file) {
 	    lines++;
 	  }
 	}
+
 	// make buffer rows
 	buffer.num_rows = lines;
-	Row rows[lines];
-	buffer.rows = rows; 
-
-	// make row content strs
-	for (int i = 0; i < buffer.num_rows; i++) {
-		buffer.rows[i].length = 140;
-		char contents[buffer.rows[i].length];
-		buffer.rows[i].contents = contents;
+	buffer.rows = malloc(sizeof(Row) * buffer.num_rows);
+	if (!buffer.rows) {
+		perror("malloc");
+		fclose(fp);
+		return buffer;
 	}
+	
+	// allocate mem for row content
+	for (int i = 0; i < lines; i++) {
+		buffer.rows[i].length = 140;
+		buffer.rows[i].contents = malloc(sizeof(char) * buffer.rows[i].length);
+		if (!buffer.rows[i].contents) {
+			perror("malloc");
+			fclose(fp);
+			for (int j = 0; j < i; j++) {
+				free(buffer.rows[j].contents);
+			}
+			free(buffer.rows);
+			return buffer;
+		}
+	}
+
 	// fill row content strs with file chars	
-	fp = fopen(file, "r");
-	int cur_line = 0;
-	int char_num = 0;
-	char cur_char;
-	while(!feof(fp)) { 
-		cur_char = fgetc(fp);
-		buffer.rows[cur_line].contents[char_num] = cur_char; 
-		if (cur_char == '\n') {
-			cur_line++;
-			char_num = 0;
-		} else {
-			char_num++;
+	rewind(fp);
+	int cur_line = 0, char_num = 0;
+	while((ch = fgetc(fp)) != EOF && cur_line < lines) { 
+		if (char_num < buffer.rows[cur_line].length - 1) {
+			buffer.rows[cur_line].contents[char_num++] = ch;
+			if (ch == '\n') {
+				buffer.rows[cur_line].contents[char_num] = '\0';
+				cur_line++;
+				char_num = 0;
+			}
 		}
 	}
 	fclose(fp);
@@ -73,7 +76,7 @@ int main(int argc, char *argv[]) {
 		buffer = open_file_to_buffer("empty.txt");
 	}
 	print_buffer_to_screen(buffer);
-        printw("\n Waiting for input to close");
+        printw("\nWaiting for input to close");
 	refresh();
 	getch();
 	endwin();
