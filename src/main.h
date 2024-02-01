@@ -22,4 +22,6 @@ typedef struct {
 // global var(s)
 Mode mode = NORMAL;
 
-void openFile(char *fileName);
+// function prototype(s)
+Buffer open_file_to_buffer(Buffer* buffer, char *filename);
+void print_buffer_to_screen(Buffer* buffer);
