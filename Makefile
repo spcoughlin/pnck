@@ -1,5 +1,5 @@
 # Name of the executable
-TARGET = main
+TARGET = pnck 
 
 # Compiler to use
 CC = gcc
@@ -10,8 +10,14 @@ CFLAGS = -Wall
 # Linker flags
 LDFLAGS = -lncurses
 
+# Source files directory
+SRC_DIR = src
+
 # Source files
-SRC = main.c
+SRC = $(SRC_DIR)/main.c
+
+# Object files directory
+OBJ_DIR = $(SRC_DIR)/obj
 
 # Build rule for the main target
 $(TARGET): $(SRC)
