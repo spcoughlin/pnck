@@ -90,21 +90,21 @@ void print_buffer_to_screen(Buffer *buffer) {
 // keypress handlers for normal mode
 void normal_mode_keypress_handler(Buffer *buffer, char key) {
 	switch (key) {
-		case 'q':
-			endwin();
-			exit(0);
-			break;
 		case 'h':
-			move(cursor_y, cursor_x - 1);
+			if (cursor_x > 0)
+				move(cursor_y, --cursor_x);
 			break;
 		case 'j':
-			move(cursor_y + 1, cursor_x);
+			if (cursor_y < buffer->num_rows - 1)
+				move(++cursor_y, cursor_x);
 			break;
 		case 'k':
-			move(cursor_y - 1, cursor_x);
+			if (cursor_y > 0)
+				move(--cursor_y, cursor_x);
 			break;
 		case 'l':
-			move(cursor_y, cursor_x + 1);
+			if (cursor_x < buffer->rows[cursor_y].length - 1)
+				move(cursor_y, ++cursor_x);
 			break;
 		case 'i':
 			mode = INSERT;
@@ -145,24 +145,11 @@ void insert_mode_keypress_handler(Buffer *buffer, char key) {
 	}
 }
 
-// main loop for normal mode
-void normal_mode(Buffer *buffer) {
-	while (mode == NORMAL) {
-		char key = getch();
-		normal_mode_keypress_handler(buffer, key);
-	}
-}
-
-// main loop for insert mode
-void insert_mode(Buffer *buffer) {
-	while (mode == INSERT) {
-		char key = getch();
-		insert_mode_keypress_handler(buffer, key);
-	}
-}
 
 int main(int argc, char *argv[]) {
         initscr();
+	noecho();
+	raw();
 	Buffer buffer;
 	Buffer *buffer_ptr = &buffer;
         if (argc == 2) {
@@ -172,7 +159,15 @@ int main(int argc, char *argv[]) {
 		open_file_to_buffer(buffer_ptr, "empty.txt");
 	}
 	print_buffer_to_screen(buffer_ptr);
-	normal_mode(buffer_ptr);
+	char ch;
+	while((ch = getch()) != 'q') {
+		if (mode == NORMAL) {
+			normal_mode_keypress_handler(buffer_ptr, ch);
+		} else if (mode == INSERT) {
+			insert_mode_keypress_handler(buffer_ptr, ch);
+		}
+	}
+	endwin();
 	return 0;
 }
 

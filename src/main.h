@@ -1,5 +1,8 @@
 #include <ctype.h>
 
+// define(s)
+#define CTRL_KEY(k) ((k) && 0x1f)
+
 typedef enum {
 	NORMAL,
 	COMMAND,
