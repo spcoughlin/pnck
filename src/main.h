@@ -21,6 +21,8 @@ typedef struct {
 
 // global var(s)
 Mode mode = NORMAL;
+int cursor_x = 0;
+int cursor_y = 0;
 
 // function prototype(s)
 Buffer open_file_to_buffer(Buffer* buffer, char *filename);
