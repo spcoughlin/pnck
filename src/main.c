@@ -9,8 +9,7 @@ Buffer open_file_to_buffer(Buffer* buffer, char *file) {
 
 	int lines = 0;
 	char ch;
-	while(!feof(fp)) {
-	  ch = fgetc(fp);
+	while((ch = fgetc(fp)) != EOF) {
 	  if (ch == '\n') {
 	    lines++;
 	  }
