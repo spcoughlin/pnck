@@ -47,6 +47,7 @@ Buffer open_file_to_buffer(Buffer* buffer, char *file) {
 			buffer->rows[cur_line].contents[char_num++] = ch;
 			if (ch == '\n') {
 				buffer->rows[cur_line].contents[char_num] = '\0';
+				buffer->rows[cur_line].length = char_num;
 				cur_line++;
 				char_num = 0;
 			}
@@ -55,20 +56,14 @@ Buffer open_file_to_buffer(Buffer* buffer, char *file) {
 	fclose(fp);
 	return *buffer;
 }
+
 // add an empty row to the buffer at cursor_y
 void add_empty_row(Buffer *buffer) {
 	// realloc for new row
-	buffer->num_rows++;
+	buffer->num_rows = buffer->num_rows + 1;
 	buffer->rows = realloc(buffer->rows, sizeof(Row) * buffer->num_rows);
 	if (!buffer->rows) {
 		perror("realloc");
-		exit(1);
-	}
-	// malloc for new row
-	buffer->rows[cursor_y + 1].length = 140;
-	buffer->rows[cursor_y + 1].contents = malloc(sizeof(char) * buffer->rows[cursor_y + 1].length);
-	if (!buffer->rows[cursor_y + 1].contents) {
-		perror("malloc");
 		exit(1);
 	}
 	// shift everything down
@@ -76,6 +71,24 @@ void add_empty_row(Buffer *buffer) {
 		buffer->rows[i] = buffer->rows[i - 1];
 	}
 
+	// malloc for new row
+	buffer->rows[cursor_y + 1].length = 140;
+	buffer->rows[cursor_y + 1].contents = malloc(sizeof(char) * buffer->rows[cursor_y + 1].length);
+	if (!buffer->rows[cursor_y + 1].contents) {
+		perror("malloc");
+		exit(1);
+	}
+
+}
+
+// write buffer to file
+void write_buffer_to_file(Buffer *buffer, char *file) {
+	FILE *fp;
+	fp = fopen(file, "w");
+	for (int i = 0; i < buffer->num_rows; i++) {
+		fputs(buffer->rows[i].contents, fp);
+	}
+	fclose(fp);
 }
 
 // only call after initscr()
@@ -91,20 +104,24 @@ void print_buffer_to_screen(Buffer *buffer) {
 void normal_mode_keypress_handler(Buffer *buffer, char key) {
 	switch (key) {
 		case 'h':
-			if (cursor_x > 0)
+			if (cursor_x > 0) {
 				move(cursor_y, --cursor_x);
+			}
 			break;
 		case 'j':
-			if (cursor_y < buffer->num_rows - 1)
+			if (cursor_y < buffer->num_rows - 1) {
 				move(++cursor_y, cursor_x);
+			}
 			break;
 		case 'k':
-			if (cursor_y > 0)
+			if (cursor_y > 0) {
 				move(--cursor_y, cursor_x);
+			}
 			break;
 		case 'l':
-			if (cursor_x < buffer->rows[cursor_y].length - 1)
+			if (cursor_x < buffer->rows[cursor_y].length - 1 && cursor_x < buffer->rows[cursor_y].length) {
 				move(cursor_y, ++cursor_x);
+			}
 			break;
 		case 'i':
 			mode = INSERT;
@@ -116,6 +133,7 @@ void normal_mode_keypress_handler(Buffer *buffer, char key) {
 				buffer->rows[cursor_y].contents[i] = buffer->rows[cursor_y].contents[i + 1];
 			}
 			print_buffer_to_screen(buffer);
+			move(cursor_y, cursor_x);
 			break;
 	}
 }
@@ -128,19 +146,22 @@ void insert_mode_keypress_handler(Buffer *buffer, char key) {
 			break;
 		case 127:
 			buffer->rows[cursor_y].contents[cursor_x] = ' ';
-			move(cursor_y, cursor_x - 1);
 			print_buffer_to_screen(buffer);
+			move(cursor_y, --cursor_x);
 			break;
 		case 13:
 			add_empty_row(buffer);
+			print_buffer_to_screen(buffer);
 			move(cursor_y + 1, 0);
-			print_buffer_to_screen(buffer);
 			break;
-
 		default:
+			for (int i = buffer->rows[cursor_y].length + 1; i > cursor_x; i--) {
+				buffer->rows[cursor_y].contents[i] = buffer->rows[cursor_y].contents[i - 1];
+			}
 			buffer->rows[cursor_y].contents[cursor_x] = key;
-			move(cursor_y, cursor_x + 1);
+			buffer->rows[cursor_y].length++;
 			print_buffer_to_screen(buffer);
+			move(cursor_y, ++cursor_x);
 			break;
 	}
 }
@@ -160,6 +181,7 @@ int main(int argc, char *argv[]) {
 	}
 	print_buffer_to_screen(buffer_ptr);
 	char ch;
+	move(0, 0);
 	while((ch = getch()) != 'q') {
 		if (mode == NORMAL) {
 			normal_mode_keypress_handler(buffer_ptr, ch);
