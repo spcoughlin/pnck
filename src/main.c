@@ -44,7 +44,8 @@ Buffer open_file_to_buffer(Buffer* buffer, char *file) {
 	int cur_line = 0, char_num = 0;
 	while((ch = fgetc(fp)) != EOF && cur_line < lines) { 
 		if (char_num < buffer->rows[cur_line].length - 1) {
-			buffer->rows[cur_line].contents[char_num++] = ch;
+			buffer->rows[cur_line].contents[char_num] = ch;
+			char_num++;
 			if (ch == '\n') {
 				buffer->rows[cur_line].contents[char_num] = '\0';
 				buffer->rows[cur_line].length = char_num;
@@ -60,13 +61,13 @@ Buffer open_file_to_buffer(Buffer* buffer, char *file) {
 // add an empty row to the buffer at cursor_y
 void add_empty_row(Buffer *buffer) {
 	// realloc for new row
-	buffer->num_rows = buffer->num_rows + 1;
+	buffer->num_rows++;
 	buffer->rows = realloc(buffer->rows, sizeof(Row) * buffer->num_rows);
 	if (!buffer->rows) {
 		perror("realloc");
 		exit(1);
 	}
-	// shift everything down
+	// shift all rows down
 	for (int i = buffer->num_rows - 1; i > cursor_y + 1; i--) {
 		buffer->rows[i] = buffer->rows[i - 1];
 	}
@@ -78,6 +79,8 @@ void add_empty_row(Buffer *buffer) {
 		perror("malloc");
 		exit(1);
 	}
+	buffer->rows[cursor_y + 1].contents[0] = '\n';
+	buffer->rows[cursor_y + 1].contents[1] = '\0';
 
 }
 
@@ -95,7 +98,13 @@ void write_buffer_to_file(Buffer *buffer, char *file) {
 void print_buffer_to_screen(Buffer *buffer) {
 	clear();
 	for (int i = 0; i < buffer->num_rows; i++) {
-		printw("Buffer Row %i: %s", i, buffer->rows[i].contents);
+		for (int j = 0; j < buffer->rows[i].length; j++) {
+			if (buffer->rows[i].contents[j] == '\n') {
+				printw("\n");
+			} else if (buffer->rows[i].contents[j] != '\0') {
+				printw("%c", buffer->rows[i].contents[j]);
+			}
+		}
 	}
 	refresh();
 }
@@ -149,10 +158,10 @@ void insert_mode_keypress_handler(Buffer *buffer, char key) {
 			print_buffer_to_screen(buffer);
 			move(cursor_y, --cursor_x);
 			break;
-		case 13:
+		case 10:
 			add_empty_row(buffer);
 			print_buffer_to_screen(buffer);
-			move(cursor_y + 1, 0);
+			move(++cursor_y, 0);
 			break;
 		default:
 			for (int i = buffer->rows[cursor_y].length + 1; i > cursor_x; i--) {
