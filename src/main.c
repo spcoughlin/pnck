@@ -95,41 +95,48 @@ void write_buffer_to_file(Buffer *buffer, char *file) {
 }
 
 // only call after initscr()
-void print_buffer_to_screen(Buffer *buffer) {
-	clear();
+void print_buffer_to_screen(WM *WM, Buffer *buffer) {
+	wclear(WM->main_win);
 	for (int i = 0; i < buffer->num_rows; i++) {
 		for (int j = 0; j < buffer->rows[i].length; j++) {
 			if (buffer->rows[i].contents[j] == '\n') {
-				printw("\n");
+				wprintw(WM->main_win, "\n");
 			} else if (buffer->rows[i].contents[j] != '\0') {
-				printw("%c", buffer->rows[i].contents[j]);
+				wprintw(WM->main_win, "%c", buffer->rows[i].contents[j]);
 			}
 		}
 	}
-	refresh();
+	wrefresh(WM->main_win);
+}
+
+void print_status_bar(WM *WM, char *msg) {
+	wclear(WM->status_win);
+	wprintw(WM->status_win, msg);
+	wrefresh(WM->status_win);
 }
 
 // keypress handlers for normal mode
-void normal_mode_keypress_handler(Buffer *buffer, char key) {
+void normal_mode_keypress_handler(WM *WM, Buffer *buffer, char key) {
+	print_status_bar(WM, "NORMAL");
 	switch (key) {
 		case 'h':
 			if (cursor_x > 0) {
-				move(cursor_y, --cursor_x);
+				wmove(WM->main_win, cursor_y, --cursor_x);
 			}
 			break;
 		case 'j':
 			if (cursor_y < buffer->num_rows - 1) {
-				move(++cursor_y, cursor_x);
+				wmove(WM->main_win, ++cursor_y, cursor_x);
 			}
 			break;
 		case 'k':
 			if (cursor_y > 0) {
-				move(--cursor_y, cursor_x);
+				wmove(WM->main_win, --cursor_y, cursor_x);
 			}
 			break;
 		case 'l':
 			if (cursor_x < buffer->rows[cursor_y].length - 1 && cursor_x < buffer->rows[cursor_y].length) {
-				move(cursor_y, ++cursor_x);
+				wmove(WM->main_win, cursor_y, ++cursor_x);
 			}
 			break;
 		case 'i':
@@ -141,26 +148,27 @@ void normal_mode_keypress_handler(Buffer *buffer, char key) {
 			for (int i = cursor_x; i < buffer->rows[cursor_y].length - 1; i++) {
 				buffer->rows[cursor_y].contents[i] = buffer->rows[cursor_y].contents[i + 1];
 			}
-			print_buffer_to_screen(buffer);
-			move(cursor_y, cursor_x);
+			print_buffer_to_screen(WM, buffer);
+			wmove(WM->main_win, cursor_y, cursor_x);
 			break;
 	}
 }
 
 // keypress handlers for insert mode
-void insert_mode_keypress_handler(Buffer *buffer, char key) {
+void insert_mode_keypress_handler(WM *WM, Buffer *buffer, char key) {
+	print_status_bar(WM, "INSERT");
 	switch (key) {
 		case 27:
 			mode = NORMAL;
 			break;
 		case 127:
 			buffer->rows[cursor_y].contents[cursor_x] = ' ';
-			print_buffer_to_screen(buffer);
+			print_buffer_to_screen(WM, buffer);
 			move(cursor_y, --cursor_x);
 			break;
 		case 10:
 			add_empty_row(buffer);
-			print_buffer_to_screen(buffer);
+			print_buffer_to_screen(WM, buffer);
 			move(++cursor_y, 0);
 			break;
 		default:
@@ -169,7 +177,7 @@ void insert_mode_keypress_handler(Buffer *buffer, char key) {
 			}
 			buffer->rows[cursor_y].contents[cursor_x] = key;
 			buffer->rows[cursor_y].length++;
-			print_buffer_to_screen(buffer);
+			print_buffer_to_screen(WM, buffer);
 			move(cursor_y, ++cursor_x);
 			break;
 	}
@@ -180,6 +188,21 @@ int main(int argc, char *argv[]) {
         initscr();
 	noecho();
 	raw();
+
+	// initialize windows
+	WM windows;
+	WM *WMptr = &windows;
+	getmaxyx(stdscr, WMptr->gen_win_x, WMptr->gen_win_y);
+	WMptr->main_win_x = WMptr->gen_win_x;
+	WMptr->main_win_y = WMptr->gen_win_y;
+	WMptr->main_win = newwin(windows.gen_win_x, windows.gen_win_y, 0, 0);
+	WMptr->status_win_x = 1;
+	WMptr->status_win_y = WMptr->gen_win_y;
+	WMptr->status_win = newwin(WMptr->status_win_x, WMptr->status_win_y, WMptr->gen_win_x - 1, 0);
+	WMptr->line_num_win_x = WMptr->gen_win_x;
+	WMptr->line_num_win_y = 4;
+	WMptr->line_num_win = newwin(WMptr->line_num_win_x, WMptr->line_num_win_y, 0, 0); 
+
 	Buffer buffer;
 	Buffer *buffer_ptr = &buffer;
         if (argc == 2) {
@@ -188,14 +211,14 @@ int main(int argc, char *argv[]) {
         } else {
 		open_file_to_buffer(buffer_ptr, "empty.txt");
 	}
-	print_buffer_to_screen(buffer_ptr);
+	print_buffer_to_screen(WMptr, buffer_ptr);
 	char ch;
-	move(0, 0);
+	wmove(WMptr->main_win, 0, 0);
 	while((ch = getch()) != 'q') {
 		if (mode == NORMAL) {
-			normal_mode_keypress_handler(buffer_ptr, ch);
+			normal_mode_keypress_handler(WMptr, buffer_ptr, ch);
 		} else if (mode == INSERT) {
-			insert_mode_keypress_handler(buffer_ptr, ch);
+			insert_mode_keypress_handler(WMptr, buffer_ptr, ch);
 		}
 	}
 	endwin();
