@@ -58,6 +58,15 @@ Buffer open_file_to_buffer(Buffer* buffer, char *file) {
 	return *buffer;
 }
 
+// delete char at cursor_x, cursor_y in buffer
+void delete_char_in_buffer(Buffer *buffer) {
+	buffer->rows[cursor_y].contents[cursor_x] = ' ';
+	for (int i = cursor_x; i < buffer->rows[cursor_y].length - 1; i++) {
+		buffer->rows[cursor_y].contents[i] = buffer->rows[cursor_y].contents[i + 1];
+	}
+}
+
+
 // add an empty row to the buffer at cursor_y
 void add_empty_row(Buffer *buffer) {
 	// realloc for new row
@@ -79,9 +88,21 @@ void add_empty_row(Buffer *buffer) {
 		perror("malloc");
 		exit(1);
 	}
-	buffer->rows[cursor_y + 1].contents[0] = '\n';
-	buffer->rows[cursor_y + 1].contents[1] = '\0';
-
+	
+	// put remaining chars in new row and delete from old row
+	buffer->rows[cursor_y + 1].length = buffer->rows[cursor_y].length - cursor_x;
+	char *new_row = malloc(sizeof(char) * (buffer->rows[cursor_y].length - cursor_x));
+	for (int i = 0; i < buffer->rows[cursor_y].length - cursor_x; i++) {
+		new_row[i] = buffer->rows[cursor_y].contents[i + cursor_x];
+		delete_char_in_buffer(buffer);
+	}
+	buffer->rows[cursor_y].contents[cursor_x] = '\n';
+	buffer->rows[cursor_y].contents[cursor_x + 1] = '\0';
+	for (int i = 0; i < (buffer->rows[cursor_y].length - cursor_x); i++) {
+		buffer->rows[cursor_y + 1].contents[i] = new_row[i];
+	}
+	buffer->rows[cursor_y].length = cursor_x + 1;
+	free(new_row);
 }
 
 // write buffer to file
@@ -155,6 +176,7 @@ void normal_mode_keypress_handler(WM *WM, Buffer *buffer, char key) {
 			break;
 		case 'i': // insert mode
 			mode = INSERT;
+			print_status_bar(WM, " -- INSERT -- ");
 			break;
 		case 'x': // delete char
 			buffer->rows[cursor_y].contents[cursor_x] = ' ';
@@ -178,6 +200,7 @@ void insert_mode_keypress_handler(WM *WM, Buffer *buffer, char key) {
 	switch (key) {
 		case 27:
 			mode = NORMAL;
+			print_status_bar(WM, " -- NORMAL -- ");
 			break;
 		case 127:
 			buffer->rows[cursor_y].contents[cursor_x] = ' ';

@@ -50,4 +50,12 @@ int cursor_x = 0;
 int cursor_y = 0;
 
 // function prototype(s)
-Buffer open_file_to_buffer(Buffer* buffer, char *filename);
+Buffer open_file_to_buffer(Buffer* buffer, char *file);
+void delete_char_in_buffer(Buffer *buffer);
+void add_empty_row(Buffer *buffer);
+void print_buffer_to_screen(WM *WM, Buffer *buffer);
+void write_buffer_to_file(Buffer *buffer, char *file);
+void print_status_bar(WM *WM, char *msg);
+void print_line_numbers_for_buffer(WM *WM, Buffer *buffer);
+void normal_mode_keypress_handler(WM *WM, Buffer *buffer, char key);
+void insert_mode_keypress_handler(WM *WM, Buffer *buffer, char key);
