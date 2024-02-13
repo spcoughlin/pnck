@@ -112,37 +112,51 @@ void print_buffer_to_screen(WM *WM, Buffer *buffer) {
 void print_status_bar(WM *WM, char *msg) {
 	wclear(WM->status_win);
 	wprintw(WM->status_win, msg);
+	wmove(WM->main_win, cursor_y, cursor_x);
 	wrefresh(WM->status_win);
+	wrefresh(WM->main_win);
+}
+
+void print_line_numbers_for_buffer(WM *WM, Buffer *buffer) {
+	wclear(WM->line_num_win);
+	for (int i = 1; i <= buffer->num_rows; i++) {
+		wprintw(WM->line_num_win, "%d\n", i);
+	}
+	wrefresh(WM->line_num_win);
 }
 
 // keypress handlers for normal mode
 void normal_mode_keypress_handler(WM *WM, Buffer *buffer, char key) {
-	print_status_bar(WM, "NORMAL");
+	print_status_bar(WM, " -- NORMAL -- ");
 	switch (key) {
-		case 'h':
+		case 'h': // move left
 			if (cursor_x > 0) {
 				wmove(WM->main_win, cursor_y, --cursor_x);
+				wrefresh(WM->main_win);
 			}
 			break;
-		case 'j':
+		case 'j': // move down
 			if (cursor_y < buffer->num_rows - 1) {
 				wmove(WM->main_win, ++cursor_y, cursor_x);
+				wrefresh(WM->main_win);
 			}
 			break;
-		case 'k':
+		case 'k': // move up
 			if (cursor_y > 0) {
 				wmove(WM->main_win, --cursor_y, cursor_x);
+				wrefresh(WM->main_win);
 			}
 			break;
-		case 'l':
+		case 'l': // move right
 			if (cursor_x < buffer->rows[cursor_y].length - 1 && cursor_x < buffer->rows[cursor_y].length) {
 				wmove(WM->main_win, cursor_y, ++cursor_x);
+				wrefresh(WM->main_win);
 			}
 			break;
-		case 'i':
+		case 'i': // insert mode
 			mode = INSERT;
 			break;
-		case 'x':
+		case 'x': // delete char
 			buffer->rows[cursor_y].contents[cursor_x] = ' ';
 			// shift everything to the left
 			for (int i = cursor_x; i < buffer->rows[cursor_y].length - 1; i++) {
@@ -150,13 +164,17 @@ void normal_mode_keypress_handler(WM *WM, Buffer *buffer, char key) {
 			}
 			print_buffer_to_screen(WM, buffer);
 			wmove(WM->main_win, cursor_y, cursor_x);
+			wrefresh(WM->main_win);
+			break;
+		case 'w': // write buffer to file
+			write_buffer_to_file(buffer, filename);
 			break;
 	}
 }
 
 // keypress handlers for insert mode
 void insert_mode_keypress_handler(WM *WM, Buffer *buffer, char key) {
-	print_status_bar(WM, "INSERT");
+	print_status_bar(WM, " -- INSERT -- ");
 	switch (key) {
 		case 27:
 			mode = NORMAL;
@@ -190,28 +208,32 @@ int main(int argc, char *argv[]) {
 	raw();
 
 	// initialize windows
-	WM windows;
-	WM *WMptr = &windows;
+	WM *WMptr = &wm;
 	getmaxyx(stdscr, WMptr->gen_win_x, WMptr->gen_win_y);
 	WMptr->main_win_x = WMptr->gen_win_x;
 	WMptr->main_win_y = WMptr->gen_win_y;
-	WMptr->main_win = newwin(windows.gen_win_x, windows.gen_win_y, 0, 0);
+	WMptr->main_win = newwin(WMptr->gen_win_x, WMptr->gen_win_y, 0, 5);
 	WMptr->status_win_x = 1;
 	WMptr->status_win_y = WMptr->gen_win_y;
 	WMptr->status_win = newwin(WMptr->status_win_x, WMptr->status_win_y, WMptr->gen_win_x - 1, 0);
 	WMptr->line_num_win_x = WMptr->gen_win_x;
 	WMptr->line_num_win_y = 4;
 	WMptr->line_num_win = newwin(WMptr->line_num_win_x, WMptr->line_num_win_y, 0, 0); 
+	refresh();
 
-	Buffer buffer;
+	// initialize buffer
 	Buffer *buffer_ptr = &buffer;
         if (argc == 2) {
                 char *file = argv[1];
 		open_file_to_buffer(buffer_ptr, file);
+		filename = file;
         } else {
 		open_file_to_buffer(buffer_ptr, "empty.txt");
+		filename = "empty.txt";
 	}
 	print_buffer_to_screen(WMptr, buffer_ptr);
+	print_line_numbers_for_buffer(WMptr, buffer_ptr);
+	print_status_bar(WMptr, " -- NORMAL -- ");
 	char ch;
 	wmove(WMptr->main_win, 0, 0);
 	while((ch = getch()) != 'q') {

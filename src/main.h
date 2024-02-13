@@ -43,6 +43,9 @@ typedef struct WM {
 
 // global var(s)
 Mode mode = NORMAL;
+WM wm;
+Buffer buffer;
+char *filename;
 int cursor_x = 0;
 int cursor_y = 0;
 
