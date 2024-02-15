@@ -60,10 +60,11 @@ Buffer open_file_to_buffer(Buffer* buffer, char *file) {
 
 // delete char at cursor_x, cursor_y in buffer
 void delete_char_in_buffer(Buffer *buffer) {
-	buffer->rows[cursor_y].contents[cursor_x] = ' ';
-	for (int i = cursor_x; i < buffer->rows[cursor_y].length - 1; i++) {
+	for (int i = cursor_x; i < buffer->rows[cursor_y].length; i++) {
 		buffer->rows[cursor_y].contents[i] = buffer->rows[cursor_y].contents[i + 1];
 	}
+	buffer->rows[cursor_y].contents[buffer->rows[cursor_y].length] = '\0';
+	buffer->rows[cursor_y].length--;
 }
 
 
@@ -179,11 +180,7 @@ void normal_mode_keypress_handler(WM *WM, Buffer *buffer, char key) {
 			print_status_bar(WM, " -- INSERT -- ");
 			break;
 		case 'x': // delete char
-			buffer->rows[cursor_y].contents[cursor_x] = ' ';
-			// shift everything to the left
-			for (int i = cursor_x; i < buffer->rows[cursor_y].length - 1; i++) {
-				buffer->rows[cursor_y].contents[i] = buffer->rows[cursor_y].contents[i + 1];
-			}
+			delete_char_in_buffer(buffer);	
 			print_buffer_to_screen(WM, buffer);
 			wmove(WM->main_win, cursor_y, cursor_x);
 			wrefresh(WM->main_win);
@@ -205,12 +202,14 @@ void insert_mode_keypress_handler(WM *WM, Buffer *buffer, char key) {
 		case 127:
 			buffer->rows[cursor_y].contents[cursor_x] = ' ';
 			print_buffer_to_screen(WM, buffer);
-			move(cursor_y, --cursor_x);
+			wmove(WM->main_win, cursor_y, --cursor_x);
+			wrefresh(WM->main_win);
 			break;
 		case 10:
 			add_empty_row(buffer);
 			print_buffer_to_screen(WM, buffer);
-			move(++cursor_y, 0);
+			wmove(WM->main_win, ++cursor_y, 0);
+			wrefresh(WM->main_win);
 			break;
 		default:
 			for (int i = buffer->rows[cursor_y].length + 1; i > cursor_x; i--) {
@@ -219,7 +218,8 @@ void insert_mode_keypress_handler(WM *WM, Buffer *buffer, char key) {
 			buffer->rows[cursor_y].contents[cursor_x] = key;
 			buffer->rows[cursor_y].length++;
 			print_buffer_to_screen(WM, buffer);
-			move(cursor_y, ++cursor_x);
+			wmove(WM->main_win, cursor_y, ++cursor_x);
+			wrefresh(WM->main_win);
 			break;
 	}
 }
