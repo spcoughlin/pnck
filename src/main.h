@@ -13,8 +13,7 @@ typedef enum {
 
 typedef struct {
 	char *contents;
-	size_t index;
-	size_t length;
+	size_t length; // includes \n
 } Row;
 
 typedef struct {
@@ -42,16 +41,17 @@ typedef struct WM {
 } WM;
 
 // global var(s)
-Mode mode = NORMAL;
-WM wm;
-Buffer buffer;
-char *filename;
-int cursor_x = 0;
-int cursor_y = 0;
+Mode mode = NORMAL; // mode indicator
+WM wm; // window manager, struct that holds all the windows
+Buffer buffer; // currently open buffer
+char *filename; // currently open file
+int cursor_x = 0; // x cursor var for main window
+int cursor_y = 0; // y cursor var for main window
 
 // function prototype(s)
 Buffer open_file_to_buffer(Buffer* buffer, char *file);
-void delete_char_in_buffer(Buffer *buffer);
+void delete_char_in_buffer(Buffer *buffer, int x, int y);
+void insert_char_in_buffer(Buffer *buffer, char c, int x, int y);
 void add_empty_row(Buffer *buffer);
 void print_buffer_to_screen(WM *WM, Buffer *buffer);
 void write_buffer_to_file(Buffer *buffer, char *file);

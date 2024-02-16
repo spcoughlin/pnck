@@ -58,18 +58,43 @@ Buffer open_file_to_buffer(Buffer* buffer, char *file) {
 	return *buffer;
 }
 
-// delete char at cursor_x, cursor_y in buffer
-void delete_char_in_buffer(Buffer *buffer) {
-	for (int i = cursor_x; i < buffer->rows[cursor_y].length; i++) {
-		buffer->rows[cursor_y].contents[i] = buffer->rows[cursor_y].contents[i + 1];
+// delete char at x, y in buffer
+void delete_char_in_buffer(Buffer *buffer, int x, int y) {
+	for (int i = x; i < buffer->rows[y].length; i++) {
+		buffer->rows[y].contents[i] = buffer->rows[y].contents[i + 1];
 	}
-	buffer->rows[cursor_y].contents[buffer->rows[cursor_y].length] = '\0';
-	buffer->rows[cursor_y].length--;
+	buffer->rows[y].contents[buffer->rows[y].length] = '\0';
+	buffer->rows[y].length--;
 }
 
+// insert char at x, y in buffer, shift all chars to the right
+void insert_char_in_buffer(Buffer *buffer, char c, int x, int y) {
+	for (int i = buffer->rows[y].length + 1; i > x; i--) {
+		buffer->rows[y].contents[i] = buffer->rows[y].contents[i - 1];
+	}
+	buffer->rows[y].contents[x] = c;
+	buffer->rows[y].length++;
+}
 
-// add an empty row to the buffer at cursor_y
-void add_empty_row(Buffer *buffer) {
+// delete row at y in buffer
+void delete_row_in_buffer(Buffer *buffer, int y) {
+	// move every row up
+	for (int i = y; i < buffer->num_rows - 1; i++) {
+		buffer->rows[i] = buffer->rows[i + 1];
+	}
+
+	// realloc for less rows
+	buffer->num_rows--;
+	buffer->rows = realloc(buffer->rows, sizeof(Row) * buffer->num_rows);
+	if (!buffer->rows) {
+		perror("realloc");
+		exit(1);
+	}
+
+}
+
+// add a row to the buffer at cursor_y with contents from cursor_x to end of line
+void add_row(Buffer *buffer) {
 	// realloc for new row
 	buffer->num_rows++;
 	buffer->rows = realloc(buffer->rows, sizeof(Row) * buffer->num_rows);
@@ -83,27 +108,15 @@ void add_empty_row(Buffer *buffer) {
 	}
 
 	// malloc for new row
-	buffer->rows[cursor_y + 1].length = 140;
-	buffer->rows[cursor_y + 1].contents = malloc(sizeof(char) * buffer->rows[cursor_y + 1].length);
+	buffer->rows[cursor_y + 1].length = 1;
+	buffer->rows[cursor_y + 1].contents = malloc(sizeof(char) * 140);
 	if (!buffer->rows[cursor_y + 1].contents) {
 		perror("malloc");
 		exit(1);
 	}
-	
-	// put remaining chars in new row and delete from old row
-	buffer->rows[cursor_y + 1].length = buffer->rows[cursor_y].length - cursor_x;
-	char *new_row = malloc(sizeof(char) * (buffer->rows[cursor_y].length - cursor_x));
-	for (int i = 0; i < buffer->rows[cursor_y].length - cursor_x; i++) {
-		new_row[i] = buffer->rows[cursor_y].contents[i + cursor_x];
-		delete_char_in_buffer(buffer);
-	}
-	buffer->rows[cursor_y].contents[cursor_x] = '\n';
-	buffer->rows[cursor_y].contents[cursor_x + 1] = '\0';
-	for (int i = 0; i < (buffer->rows[cursor_y].length - cursor_x); i++) {
-		buffer->rows[cursor_y + 1].contents[i] = new_row[i];
-	}
-	buffer->rows[cursor_y].length = cursor_x + 1;
-	free(new_row);
+	buffer->rows[cursor_y + 1].contents[0] = '\n';
+	buffer->rows[cursor_y + 1].contents[1] = '\0';
+
 }
 
 // write buffer to file
@@ -180,7 +193,7 @@ void normal_mode_keypress_handler(WM *WM, Buffer *buffer, char key) {
 			print_status_bar(WM, " -- INSERT -- ");
 			break;
 		case 'x': // delete char
-			delete_char_in_buffer(buffer);	
+			delete_char_in_buffer(buffer, cursor_x, cursor_y);	
 			print_buffer_to_screen(WM, buffer);
 			wmove(WM->main_win, cursor_y, cursor_x);
 			wrefresh(WM->main_win);
@@ -200,23 +213,26 @@ void insert_mode_keypress_handler(WM *WM, Buffer *buffer, char key) {
 			print_status_bar(WM, " -- NORMAL -- ");
 			break;
 		case 127:
-			buffer->rows[cursor_y].contents[cursor_x] = ' ';
+			if (buffer->rows[cursor_y].length <= 1) {
+				delete_row_in_buffer(buffer, cursor_y);
+			} else {
+				delete_char_in_buffer(buffer, cursor_x - 1, cursor_y);
+			}
 			print_buffer_to_screen(WM, buffer);
 			wmove(WM->main_win, cursor_y, --cursor_x);
 			wrefresh(WM->main_win);
 			break;
 		case 10:
-			add_empty_row(buffer);
+			add_row(buffer);
 			print_buffer_to_screen(WM, buffer);
+			print_line_numbers_for_buffer(WM, buffer);
+			wrefresh(WM->main_win);
+			wrefresh(WM->line_num_win);
 			wmove(WM->main_win, ++cursor_y, 0);
 			wrefresh(WM->main_win);
 			break;
 		default:
-			for (int i = buffer->rows[cursor_y].length + 1; i > cursor_x; i--) {
-				buffer->rows[cursor_y].contents[i] = buffer->rows[cursor_y].contents[i - 1];
-			}
-			buffer->rows[cursor_y].contents[cursor_x] = key;
-			buffer->rows[cursor_y].length++;
+			insert_char_in_buffer(buffer, key, cursor_x, cursor_y);
 			print_buffer_to_screen(WM, buffer);
 			wmove(WM->main_win, cursor_y, ++cursor_x);
 			wrefresh(WM->main_win);
